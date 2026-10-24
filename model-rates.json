@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "updated_at": null,
+  "rates": {},
+  "note": "覆盖费率；新模型先保留 token，核实费率后再更新。费率是估算积分，非 Plus 额度固定换算。"
+}
