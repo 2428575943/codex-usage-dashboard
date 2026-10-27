@@ -101,6 +101,6 @@ el('issue-key').onclick=async()=>{const device_id=el('device-key-id').value.trim
 async function copy(id){try{await navigator.clipboard.writeText(el(id).value);el('account-state').textContent='已复制'}catch{el('account-state').textContent='复制失败，请手动选择文本复制'}}el('copy-device-key').onclick=()=>copy('device-key-output');
 el('rates').innerHTML=Object.entries(rates).map(([model,row])=>'<tr><td>'+esc(model)+'</td>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('');el('range').onchange=()=>render();el('metric').onchange=()=>render();el('refresh').onclick=load;setInterval(()=>{if(!document.hidden)load()},120000);
 </script>
-<script src="enhance.js?v=20261027-owner-evidence4"></script>
+<script src="enhance.js?v=20261027-weighted5"></script>
 </body>
 </html>
