@@ -68,7 +68,7 @@
 <script>
 const palette=['#8af7cc','#8db6ff','#ffd787','#e7a5ff','#ff9b9b','#7de0db','#b9a4ff','#d7e281'];
 // BEGIN STANDARD CREDIT RATES
-let rates=({'gpt-6-astra':[250,25,1250],'gpt-6.1-sol':[50,2.5,250],'gpt-6-sol':[50,5,250],'gpt-6-luna':[2.5,.25,12.5],'gpt-5.6-sol':[100,10,500],'gpt-5.6-terra':[50,5,300],'gpt-5.6-luna':[5,.5,30],'daybreak-blue':[100,10,500],'daybreak-red':[312.5,31.25,1875],'gpt-rosalind-research':[125,12.5,625],'gpt-5.5':[125,12.5,750],'gpt-5.4':[62.5,6.25,375],'gpt-5.4-mini':[18.75,1.875,113]});
+let rates=({'gpt-6-astra':[250,25,1250],'gpt-6.1-sol':[50,2.5,250],'gpt-6.1-terra':[25,1.25,125],'gpt-6-sol':[50,5,250],'gpt-6-luna':[2.5,.25,12.5],'gpt-5.6-sol':[100,10,500],'gpt-5.6-terra':[50,5,300],'gpt-5.6-luna':[5,.5,30],'daybreak-blue':[100,10,500],'daybreak-red':[312.5,31.25,1875],'gpt-rosalind-research':[125,12.5,625],'gpt-5.5':[125,12.5,750],'gpt-5.4':[62.5,6.25,375],'gpt-5.4-mini':[18.75,1.875,113]});
 let data=null,accountsState=[],deviceOptions=[],accountsLoaded=false;const el=id=>document.getElementById(id),fmt=n=>new Intl.NumberFormat('zh-CN').format(Math.round(n||0)),short=n=>n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':fmt(n),date=s=>s?new Date(s).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—',day=d=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(d),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function rateFor(model){return Object.hasOwn(rates,model)?rates[model]:null}function standardCredits(row){const r=rateFor(row.model);return r?(Math.max(0,row.input_tokens-row.cached_input_tokens)*r[0]+row.cached_input_tokens*r[1]+row.output_tokens*r[2])/1e6:null}
 // END STANDARD CREDIT RATES
@@ -101,6 +101,6 @@ el('issue-key').onclick=async()=>{const device_id=el('device-key-id').value.trim
 async function copy(id){try{await navigator.clipboard.writeText(el(id).value);el('account-state').textContent='已复制'}catch{el('account-state').textContent='复制失败，请手动选择文本复制'}}el('copy-device-key').onclick=()=>copy('device-key-output');
 el('rates').innerHTML=Object.entries(rates).map(([model,row])=>'<tr><td>'+esc(model)+'</td>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('');el('range').onchange=()=>render();el('metric').onchange=()=>render();el('refresh').onclick=load;setInterval(()=>{if(!document.hidden)load()},120000);
 </script>
-<script src="enhance.js?v=20261029-settled6"></script>
+<script src="enhance.js?v=20261029-terra"></script>
 </body>
 </html>

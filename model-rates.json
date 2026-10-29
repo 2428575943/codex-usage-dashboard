@@ -1,6 +1,77 @@
 {
-  "version": 1,
-  "updated_at": null,
-  "rates": {},
-  "note": "覆盖费率；新模型先保留 token，核实费率后再更新。费率是估算积分，非 Plus 额度固定换算。"
+  "version": "2026-10-29-terra",
+  "source": "https://learn.chatgpt.com/docs/pricing",
+  "unit": "standard_credits_per_million_tokens",
+  "rates": {
+    "gpt-6-astra": [
+      250,
+      25,
+      1250
+    ],
+    "gpt-6.1-sol": [
+      50,
+      2.5,
+      250
+    ],
+    "gpt-6.1-terra": [
+      25,
+      1.25,
+      125
+    ],
+    "gpt-6-sol": [
+      50,
+      5,
+      250
+    ],
+    "gpt-6-luna": [
+      2.5,
+      0.25,
+      12.5
+    ],
+    "gpt-5.6-sol": [
+      100,
+      10,
+      500
+    ],
+    "gpt-5.6-terra": [
+      50,
+      5,
+      300
+    ],
+    "gpt-5.6-luna": [
+      5,
+      0.5,
+      30
+    ],
+    "daybreak-blue": [
+      100,
+      10,
+      500
+    ],
+    "daybreak-red": [
+      312.5,
+      31.25,
+      1875
+    ],
+    "gpt-rosalind-research": [
+      125,
+      12.5,
+      625
+    ],
+    "gpt-5.5": [
+      125,
+      12.5,
+      750
+    ],
+    "gpt-5.4": [
+      62.5,
+      6.25,
+      375
+    ],
+    "gpt-5.4-mini": [
+      18.75,
+      1.875,
+      113
+    ]
+  }
 }
