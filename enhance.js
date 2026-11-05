@@ -9,7 +9,7 @@ function v3Rates(registry){for(const [model,row]of Object.entries(registry?.rate
 function v3Validation(c){const overall=c.cumulative_relative_error??Math.abs(c.observed_percent-c.predicted_percent)/Math.max(1,c.observed_percent);return (c.basis==='model_weighted'?'模型加权':'旧客户端 token')+'校准'+(c.passed?'通过':'未通过')+'：训练 '+c.training_samples+' 段；验证 '+c.validation_samples+' 次观测，合为 '+(c.validation_blocks||c.validation_samples)+' 个结算段；实际扣减 '+c.observed_percent.toFixed(2)+'，预测 '+c.predicted_percent.toFixed(2)+'，总量误差 '+(overall*100).toFixed(1)+'%；分段绝对误差 '+(c.relative_error*100).toFixed(1)+'%。'}
 function v3Detail(){
  const h=data?.history,a=h?.attribution,rows=[],windowMode=el('v3-detail-mode')?.value==='window';
- const records=windowMode?(data.window_models||[]):(data.devices||[]).filter(d=>d.device_id!=='others').map(d=>({device_id:d.device_id,rows:selected(d.days)}));
+ const records=windowMode?(data.window_models||[]):(data.account_devices||data.devices||[]).filter(d=>d.device_id!=='others').map(d=>({device_id:d.device_id,rows:selected(d.days)}));
  const all=records.flatMap(d=>d.rows),allPriced=all.every(r=>standardCredits(r)!==null),allCredits=all.reduce((s,r)=>s+(standardCredits(r)||0),0);
  for(const d of records){
   const items=d.rows||[],priced=items.every(r=>standardCredits(r)!==null),credits=items.reduce((s,r)=>s+(standardCredits(r)||0),0),quota=a?.groups?.[data.role==='admin'?d.device_id:'self'];
@@ -46,3 +46,18 @@ for(const id of ['v3-from','v3-to'])el(id).onchange=v3Render;
 el('v3-detail-mode').onchange=v3Render;
 
 el('quota-svg').closest('section').hidden=true;el('quota-attribution').closest('section').hidden=true;load();
+
+
+
+function renderDeviceOverview(){
+ if(!data?.device_overview)return;
+ let notice=el('v3-device-overview-notice');
+ if(!notice){notice=document.createElement('p');notice.id='v3-device-overview-notice';notice.className='small';el('devices').before(notice);}
+ notice.textContent=data.role==='admin'?'设备总览：显示全部设备及其已上传的各账号累计用量；账号选择仅筛选额度图和账号明细，不隐藏设备。':'设备总览：自己的绑定设备始终可见；其他设备只显示所选账号的合计。';
+ [...el('devices').children].forEach((card,i)=>{
+  const d=data.devices[i];if(!d?.account_labels)return;
+  const note=document.createElement('p');note.className='small';note.dataset.accountScope='overview';
+  note.textContent='账号归属：'+d.account_labels.join(' / ')+(d.account_labels.length>1?'（卡片为跨账号累计）':'');card.append(note);
+ });
+}
+const inventoryRender=render;render=function(){inventoryRender();renderDeviceOverview()};
