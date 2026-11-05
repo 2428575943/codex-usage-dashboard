@@ -6,13 +6,21 @@
   const configured=window.USAGE_API_BASE||'';
   if(configured&&saved?.base!==configured.replace(/\/$/,''))saved=null;
   const token=saved?.token;
+  const reads=new Map();
   function reset(){sessionStorage.removeItem(key);localStorage.removeItem(key);location.reload();}
   window.fetch=async(input,options={})=>{
     if(typeof input!=='string'||!input.startsWith('/api/'))return nativeFetch(input,options);
     if(!token)return new Response(JSON.stringify({error:'请登录'}),{status:401});
     const headers=new Headers(options.headers);headers.set('Authorization','Bearer '+token);
+    const read=(!options.method||options.method==='GET')&&input.startsWith('/api/data?');
+    const prior=read?reads.get(input):null;
+    if(prior?.etag)headers.set('If-None-Match',prior.etag);
     const response=await nativeFetch(saved.base+input,{...options,headers,credentials:'omit',redirect:'error'});
-    if(response.status===401)reset();return response;
+    if(response.status===401)reset();
+    if(response.status===304&&prior)return new Response(prior.body,{status:200,headers:{'Content-Type':'application/json','X-Usage-Cache':'unchanged'}});
+    if(read&&response.ok){const etag=response.headers.get('ETag');if(etag){if(reads.size>=8)reads.delete(reads.keys().next().value);reads.set(input,{etag,body:await response.clone().text()});}}
+    if(options.method&&options.method!=='GET')reads.clear();
+    return response;
   };
   if(token){
     const logout=document.createElement('button');logout.textContent='退出登录';
@@ -68,3 +76,4 @@
   el('login-form').onsubmit=e=>{e.preventDefault();submit(false);};el('setup-admin').onclick=()=>submit(true);
   if(configured)checkConnection();
 })();
+
