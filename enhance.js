@@ -1,74 +1,84 @@
-function v3Color(key,i){return key==='pending'?'#f6d986':key==='unresolved'?'#8190a8':key==='unreported'?'#9bb2ff':key==='ambiguous'?'#f6d986':palette[i%palette.length]}
-function v3Name(key){return key==='pending'?'等待结算（最近用量）':groupName(key)}
-function v3Entries(a){const pending=Math.min(a.unresolved_percent||0,a.unresolved_reasons?.settlement_pending||0);return [...Object.entries(a.groups||{}),['unreported',a.other_percent],['ambiguous',a.ambiguous_percent],['pending',pending],['unresolved',Math.max(0,(a.unresolved_percent||0)-pending)]].filter(([,v])=>v>0)}
-function v3RowValue(r,k){return k==='unreported'?(r.other||0):k==='ambiguous'?(r.ambiguous||0):k==='pending'?(r.attribution_basis==='settlement_pending'?r.unresolved||0:0):k==='unresolved'?(r.attribution_basis==='settlement_pending'?0:r.unresolved||0):r.groups[k]||0}
-let v3Kind='primary',v3Reset='',v3Chart='bar',v3Account='';
-function v3Query(){return '/api/data?kind='+v3Kind+'&reset='+encodeURIComponent(v3Reset)+'&codex_account='+encodeURIComponent(v3Account)}
-function v3Download(name,text,type){const u=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
-function v3Rates(registry){for(const [model,row]of Object.entries(registry?.rates||{}))if(Array.isArray(row)&&row.length===3&&row.every(n=>Number.isFinite(n)&&n>=0))rates[model]=row;el('rates').innerHTML=Object.entries(rates).map(([model,row])=>'<tr><td>'+esc(model)+'</td>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('')}
-function v3Validation(c){const overall=c.cumulative_relative_error??Math.abs(c.observed_percent-c.predicted_percent)/Math.max(1,c.observed_percent);return (c.basis==='model_weighted'?'模型加权':'旧客户端 token')+'校准'+(c.passed?'通过':'未通过')+'：训练 '+c.training_samples+' 段；验证 '+c.validation_samples+' 次观测，合为 '+(c.validation_blocks||c.validation_samples)+' 个结算段；实际扣减 '+c.observed_percent.toFixed(2)+'，预测 '+c.predicted_percent.toFixed(2)+'，总量误差 '+(overall*100).toFixed(1)+'%；分段绝对误差 '+(c.relative_error*100).toFixed(1)+'%。'}
-function v3Detail(){
- const h=data?.history,a=h?.attribution,rows=[],windowMode=el('v3-detail-mode')?.value==='window';
- const records=windowMode?(data.window_models||[]):(data.account_devices||data.devices||[]).filter(d=>d.device_id!=='others').map(d=>({device_id:d.device_id,rows:selected(d.days)}));
- const all=records.flatMap(d=>d.rows),allPriced=all.every(r=>standardCredits(r)!==null),allCredits=all.reduce((s,r)=>s+(standardCredits(r)||0),0);
- for(const d of records){
-  const items=d.rows||[],priced=items.every(r=>standardCredits(r)!==null),credits=items.reduce((s,r)=>s+(standardCredits(r)||0),0),quota=a?.groups?.[data.role==='admin'?d.device_id:'self'];
-  for(const r of items)rows.push({...r,day:r.day||h.start,device:d.device_id,members:(data.members||[]).filter(m=>m.devices.includes(d.device_id)).map(m=>m.id).join(';'),
-   estimated_quota_percent:!windowMode||quota==null||!priced||(data.role!=='admin'&&!allPriced)?null:quota*(standardCredits(r)||0)/Math.max(1e-12,data.role==='admin'?credits:allCredits),
-   data_basis:windowMode?'window observed minute records; check coverage':'daily records',
-   estimate_basis:windowMode?'model/input/cache/output workload share; empirical quota estimate':'daily token records only; window quota not assigned'});
+// One history selection drives usage, models and observed quota curves.
+let v3Kind='primary',v3Reset='',v3Account='',v3Scope='all',v3Chart='bar';
+function v3Query(){return '/api/data?kind='+v3Kind+'&reset='+encodeURIComponent(v3Reset)+'&usage_reset='+encodeURIComponent(v3Reset)+'&codex_account='+encodeURIComponent(v3Account)+'&scope='+v3Scope;}
+function v3Rates(registry){for(const [model,row]of Object.entries(registry?.rates||{}))if(Array.isArray(row)&&row.length===3&&row.every(n=>Number.isFinite(n)&&n>=0))rates[model]=row;el('rates').innerHTML=Object.entries(rates).map(([model,row])=>'<tr><td>'+esc(model)+'</td>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('');}
+const v3Num=n=>!Number.isFinite(n)?'—':Math.abs(n)>0&&Math.abs(n)<.01?n.toFixed(5):new Intl.NumberFormat('zh-CN',{maximumFractionDigits:2}).format(n);
+const v3Color=(id,i)=>id==='unresolved'?'#8190a8':id==='unreported'?'#9bb2ff':palette[i%palette.length];
+const v3Label=id=>id==='self'?'自己':id==='others'?'其他成员合计':id==='unreported'?'其他（估算）':id==='unresolved'?'暂无法归属':id;
+function v3WindowLabel(w){const tag=w.basis==='actual_reset'?'实际重置窗口':w.basis==='rolling_activity'?'最近用量':w.basis==='daily_totals_no_intraday_timing'?'每日汇总':'活动时段（未确认重置）';return date(w.start)+' — '+date(w.end)+' · '+tag;}
+function v3Download(name,text,type){const url=URL.createObjectURL(new Blob([text],{type})),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function v3Detail(){const e=data?.explorer;if(!e)return [];return e.details.map(r=>({...r,device:r.device_id,period_start:e.start,period_end:e.end,codex_account:data.codex_account}));}
+function v3Export(json=false){const e=data.explorer,details=v3Detail();if(json)return v3Download('codex-usage-history.json',JSON.stringify({exported_at:new Date().toISOString(),codex_account:data.codex_account,scope:e.scope,history:e,details},null,2),'application/json');const columns=['members','device','model','period_start','period_end','input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens','total_tokens','standard_credits','relative_share_percent','priced','basis'];const cell=v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';v3Download('codex-usage-models.csv','\ufeff'+[columns,...details.map(r=>columns.map(k=>r[k]))].map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8');}
+function v3ChartSvg(rows,keys,start,end,unit){
+ const span=end-start;if(!(span>0))return '<text x="30" y="90" fill="#9aaec5">此时段没有可绘制的时间记录</text>';
+ const bins=Array.from({length:24},(_,i)=>({at:start+i*span/24,values:Object.fromEntries(keys.map(k=>[k,0]))}));
+ for(const row of rows||[]){const l=Date.parse(row.at),r=Date.parse(row.end);if(r<=l)continue;for(const b of bins){const overlap=Math.max(0,Math.min(r,b.at+span/24)-Math.max(l,b.at))/(r-l);for(const k of keys)b.values[k]+=overlap*(row.groups?.[k]||0);}}
+ const max=Math.max(1e-9,...bins.map(b=>Object.values(b.values).reduce((a,b)=>a+b,0)));let svg='';
+ keys.forEach((key,k)=>{let path='';bins.forEach((b,i)=>{const x=45+i*30,y=210-170*b.values[key]/max;
+  if(v3Chart==='line')path+=(i?' L':'M')+x+','+y;
+  else{const before=keys.slice(0,k).reduce((a,id)=>a+b.values[id],0);svg+='<rect x="'+x+'" y="'+(210-170*(before+b.values[key])/max)+'" width="25" height="'+(170*b.values[key]/max)+'" fill="'+v3Color(key,k)+'"><title>'+esc(date(new Date(b.at).toISOString())+' '+v3Label(key)+' '+v3Num(b.values[key])+' '+unit)+'</title></rect>';}
+ });if(path)svg+='<path d="'+path+'" fill="none" stroke="'+v3Color(key,k)+'" stroke-width="2"/>';});
+ svg+='<text x="8" y="20" fill="#9aaec5" font-size="12">'+esc(unit)+'；上限 '+v3Num(max)+'</text>';
+ for(let i=0;i<=6;i++)svg+='<text x="'+(45+i*115)+'" y="245" text-anchor="middle" fill="#9aaec5" font-size="11">'+esc(new Date(start+i*span/6).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}))+'</text>';
+ return svg;
+}
+function v3CurveSvg(curves,start,end){
+ let svg='';for(const [i,c]of curves.entries()){let path='',previous=null;
+  for(const p of c.points){const time=Date.parse(p.at),x=45+690*(time-start)/Math.max(1,end-start),y=20+190*(100-p.remaining)/100;
+   const resetChanged=previous&&previous.resets_at!==p.resets_at;path+=(previous&&!resetChanged?' L':' M')+x+','+y;
+   svg+='<circle cx="'+x+'" cy="'+y+'" r="3.5" fill="'+v3Color(c.id,i)+'"><title>'+esc(c.label+' '+date(p.at)+' 剩余 '+v3Num(p.remaining)+'%')+'</title></circle>';previous=p;
+  }
+  if(path&&!['unidentified_device','unidentified_legacy_archive'].includes(c.basis))svg+='<path d="'+path+'" fill="none" stroke="'+v3Color(c.id,i)+'" stroke-width="2"/>';
  }
- return rows;
+ for(const n of [0,25,50,75,100])svg+='<text x="5" y="'+(24+190*(100-n)/100)+'" fill="#9aaec5" font-size="11">'+n+'%</text>';
+ for(let i=0;i<=6;i++)svg+='<text x="'+(45+i*115)+'" y="245" text-anchor="middle" fill="#9aaec5" font-size="11">'+esc(new Date(start+i*(end-start)/6).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}))+'</text>';
+ return svg+(curves.length?'':'<text x="55" y="95" fill="#9aaec5">这个时段未保存额度快照；历史用量和模型折算仍可查看。</text>');
 }
-function v3Export(json=false){const details=v3Detail(),h=data.history,payload={version:'3.0-preview',exported_at:new Date().toISOString(),account:data.account,codex_account:data.codex_account,history:h,details,warning:'Token records retain their coverage. Window model quota uses workload weights and is estimated. Unreported ranges are empirical envelopes, not statistical confidence intervals. Daily records have no window quota assignment.'};if(json)return v3Download('codex-usage-v3.json',JSON.stringify(payload,null,2),'application/json');const columns=['members','device','day','model','input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens','total_tokens','usage_events','data_basis','estimated_quota_percent','estimate_basis'];const cell=v=>'"'+String(v??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';v3Download('codex-usage-v3.csv','\ufeff'+[columns,...details.map(r=>columns.map(c=>r[c]))].map(r=>r.map(cell).join(',')).join('\r\n'),'text/csv;charset=utf-8');}
-function v3DisplayHistory(){
- const h=data?.history;if(!h)return h;
- const tokens=el('v3-chart-metric')?.value==='tokens',overview=el('v3-chart-scope')?.value!=='account';
- if(!tokens||!overview||!data.recorded_usage)return h;
- const recent=data.recorded_usage[v3Kind==='secondary'?'secondary':'primary'];
- const usage=recent?.total_tokens>0?recent:data.recorded_usage.daily;
- if(!usage)return h;
- const daily=usage.basis==='daily_totals_no_intraday_timing';
- return {...h,overview_usage:true,usage,start:usage.start,end:usage.end,windows:[],reset:'usage',points:[],
- notice:daily?'最近时段没有可用分钟记录，现显示最近 14 天已上传的每日 token 汇总；每日柱形不代表当天某小时的使用。':'全部可见设备的实际 token 活动；账号筛选只影响额度估算和账号明细，不影响这个总览图。'};
+function v3Render(){
+ const e=data?.explorer;if(!e)return;v3Reset=String(e.reset);
+ const ws=e.windows||[],wi=ws.findIndex(w=>String(w.reset)===String(e.reset));
+ el('v3-window').innerHTML=ws.map(w=>'<option value="'+esc(w.reset)+'" '+(String(w.reset)===String(e.reset)?'selected':'')+'>'+esc(v3WindowLabel(w))+'</option>').join('');
+ el('v3-prev').disabled=wi<0||wi>=ws.length-1;el('v3-next').disabled=wi<=0;
+ el('v3-period').textContent=date(e.start)+' — '+date(e.end)+'；已自动隐藏没有活动、没有额度消耗证据的窗口。'+(e.basis==='daily_totals_no_intraday_timing'?'这里只能确定每日汇总，未虚构 5h 明细。':e.basis==='activity_time_block'?'这是有实际活动的 5h 时间段，未冒充官方重置窗口。':'');
+ let metric=el('v3-chart-metric').value,view,unit;
+ if(metric==='tokens'){view=e.tokens;unit='token';}
+ else if(metric==='quota'){
+  const h=data.history,valid=e.scope==='account'&&String(h?.reset)===String(e.reset);
+  const a=valid?h.attribution:null;view=a?{groups:{...a.groups,...(a.other_percent>0?{unreported:a.other_percent}:{}),...(a.unresolved_percent>0?{unresolved:a.unresolved_percent}:{})},rows:(a.rows||[]).map(r=>({...r,groups:{...r.groups,unreported:r.other||0,unresolved:r.unresolved||0}}))}:{groups:{},rows:[]};unit='额度百分点（经验估算）';
+ }else{view=e.credits;unit='相对额度 / 标准积分';}
+ const entries=Object.entries(view.groups||{}).filter(([,n])=>n>0),sum=entries.reduce((n,[,v])=>n+v,0);let offset=0;
+ const gradient=entries.map(([k,v],i)=>{const from=offset;offset+=100*v/Math.max(1e-12,sum);return v3Color(k,i)+' '+from+'% '+offset+'%';});
+ el('v3-pie').innerHTML='<div role="img" aria-label="成员相对消耗分布" style="width:190px;height:190px;border-radius:50%;background:'+(sum?'conic-gradient('+gradient.join(',')+')':'#293548')+'"></div><div>'+entries.map(([id,n],i)=>'<p><i class="swatch" style="background:'+v3Color(id,i)+'"></i>'+esc(v3Label(id))+'：'+v3Num(n)+' '+esc(unit)+' · '+v3Num(100*n/sum)+'%</p>').join('')+(entries.length?'':'<p>此口径暂无可折算数据。可切换实际 token；已保存的额度曲线仍显示在下方。</p>')+'</div>';
+ el('v3-estimation').textContent=e.pricing_notice+' '+(e.credits.unpriced_tokens>0?'另有 '+fmt(e.credits.unpriced_tokens)+' token 的模型未配置权重，未按零计价。':'')+(metric==='quota'?'官方账号扣减与设备估算分开；此口径需选择对应账号的实际重置窗口。':'');
+ const start=Math.max(Date.parse(e.start),Date.parse(el('v3-from').value)||-Infinity),end=Math.min(Date.parse(e.end),Date.parse(el('v3-to').value)||Infinity);
+ el('v3-activity').innerHTML=v3ChartSvg(view.rows,entries.map(([id])=>id),start,end,unit);
+ // Observed curves are independent of token/credit/chart mode and calibration.
+ const picker=el('v3-curve'),prior=picker.value,curves=e.curves||[];
+ picker.innerHTML='<option value="all">全部已保存额度曲线（分开绘制）</option>'+curves.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.label)+'</option>').join('');
+ picker.value=curves.some(c=>c.id===prior)?prior:'all';
+ const shown=picker.value==='all'?curves:curves.filter(c=>c.id===picker.value);
+ el('v3-quota').innerHTML=v3CurveSvg(shown,start,end);
+ el('v3-curve-legend').innerHTML=shown.map((c,i)=>'<span><i class="swatch" style="background:'+v3Color(c.id,i)+'"></i>'+esc(c.label)+' · '+c.points.length+' 个快照</span>').join(' / ');
+ el('v3-model-rows').innerHTML=v3Detail().map(r=>'<tr><td>'+esc(r.members||r.device_id)+'</td><td>'+esc(r.device_id)+'</td><td>'+esc(r.model)+'</td>'+['input_tokens','cached_input_tokens','output_tokens','reasoning_output_tokens','total_tokens'].map(k=>'<td>'+fmt(r[k])+'</td>').join('')+'<td>'+(r.standard_credits===null?'未配置权重':v3Num(r.standard_credits))+'</td><td>'+(r.relative_share_percent===null?'—':v3Num(r.relative_share_percent)+'%')+'</td></tr>').join('')||'<tr><td colspan="10">此窗口没有保存模型分钟明细。每日模型汇总可在下方设备模型表查看；不会把整日用量硬塞进这 5h。</td></tr>';
+ el('v3-model-coverage').textContent='上表与当前所选时段一致。管理员可见每台设备模型；普通成员仅见自己的模型，其他成员只作消耗合计。'+e.retention_notice;
 }
-function v3Render(){const h=v3DisplayHistory();if(!h)return;const box=el('v3-history');if(!box)return;const usageMode=el('v3-chart-metric').value==='tokens',unit=usageMode?' token':' 个百分点',a=usageMode?{...h.usage,other_percent:0,ambiguous_percent:0,unresolved_percent:0}:h.attribution,windows=h.windows||[];el('v3-window').innerHTML=windows.map(w=>'<option value="'+w.reset+'" '+(w.reset===h.reset?'selected':'')+'>'+(w.rolling?'最近'+(v3Kind==='secondary'?'7 天':'5 小时')+'（滚动统计）':'重置于 '+date(w.label))+'</option>').join('')||'<option>最近'+(h.usage?.basis==='daily_totals_no_intraday_timing'?'14 天每日汇总':v3Kind==='secondary'?'7 天':'5 小时')+'（实际用量）</option>';el('v3-prev').disabled=!windows.length||windows.findIndex(w=>w.reset===h.reset)>=windows.length-1;el('v3-next').disabled=windows.findIndex(w=>w.reset===h.reset)<=0;
-  const entries=v3Entries(a),total=entries.reduce((s,[,v])=>s+v,0);let cumulative=0;const colors=entries.map(([,v],i)=>{const from=cumulative;cumulative+=100*v/Math.max(1,total);return v3Color(entries[i][0],i)+' '+from+'% '+cumulative+'%'});el('v3-pie').innerHTML='<div role="img" aria-label="所选额度窗口的消耗分布" style="width:190px;height:190px;border-radius:50%;background:'+(total?'conic-gradient('+colors.join(',')+')':'#293548')+'"></div><div>'+entries.map(([g,v],i)=>'<p><i class="swatch" style="background:'+v3Color(entries[i][0],i)+'"></i>'+esc(v3Name(g))+(a.confirmed_groups?.[g]>0?'（含管理员确认 '+a.confirmed_groups[g].toFixed(2)+'）':'')+'：'+(v>0&&v<0.005?'＜0.01':v.toFixed(2))+unit+'</p>').join('')+'</div>';el('v3-period').textContent=(h.start?date(h.start)+' — '+date(h.end):'暂无历史')+'；'+h.notice;el('v3-estimation').textContent=usageMode?'直接累计设备已上传的活动 token，无需等待额度快照或通过校准；token 不等于额度百分点。':a.other_range?'未同步用量估算范围：'+a.other_range.lower_percent.toFixed(2)+'～'+a.other_range.upper_percent.toFixed(2)+' 个百分点（经验误差范围）。'+(a.other_range.lower_percent<=0?'包含零，当前没有超出误差范围的额外用量证据；范围内的同时使用仍无法排除。':'额外扣减已超出目前的估算误差范围。')+' 模型明细加权估算覆盖 '+(a.model_weighted_percent||0).toFixed(2)+' 个百分点；旧客户端估算 '+(a.legacy_estimated_percent||0).toFixed(2)+' 个百分点。最近 '+Math.round((a.settlement_delay_seconds||0)/60)+' 分钟待结算，迟到记录会重算。':'';
-  const reasons={observation_gap:'额度观测中断且没有完整模型历史',activity_coverage_missing:'缺少活动覆盖记录',activity_records_missing:'模型记录尚未补齐',nearby_activity_timing:'扣减与附近活动尚未对齐',rounded_small_delta:'小额扣减待合并',calibration_missing_or_failed:'历史校准不足或累计验证未通过',unpriced_model:'新模型尚未配置权重',missing_initial_observation:'窗口起始记录缺失',settlement_pending:'最近 10 分钟待结算',quota_correction:'账号额度发生回调，等待重新核对'};
-  const reasonText=Object.entries(a.unresolved_reasons||{}).filter(([,v])=>v>0.00001).map(([k,v])=>(reasons[k]||k)+' '+v.toFixed(2)+' 个百分点').join('；');
-  if(reasonText)el('v3-estimation').textContent+=' 待归属原因：'+reasonText+'。';
-  if(a.recovered_gap_percent>0)el('v3-estimation').textContent+=' 已从完整分钟模型历史恢复 '+a.recovered_gap_percent.toFixed(2)+' 个百分点，图中时间按实际活动分布估算。';
-  el('v3-validation').hidden=usageMode||data.role!=='admin';el('v3-validation').textContent=(a.calibration||[]).map(v3Validation).join(' ')||'历史校准记录不足；已有 token 仍可在下方查看，待归属原因见上方。';
-  const start=Math.max(Date.parse(h.start),Date.parse(el('v3-from').value)||-Infinity),end=Math.min(Date.parse(h.end),Date.parse(el('v3-to').value)||Infinity),span=end-start;let svg='';if(span>0){const keys=[...new Set(entries.map(([g])=>g))],buckets=Array.from({length:24},(_,i)=>({at:start+i*span/24,values:Object.fromEntries(keys.map(k=>[k,0]))}));for(const r of a.rows||[]){const l=Date.parse(r.at),rr=Date.parse(r.end);if(rr<=l)continue;for(const b of buckets){const share=Math.max(0,Math.min(rr,b.at+span/24)-Math.max(l,b.at))/(rr-l);for(const k of keys)b.values[k]+=share*v3RowValue(r,k);}}const max=Math.max(1,...buckets.map(b=>Object.values(b.values).reduce((s,v)=>s+v,0)));keys.forEach((key,k)=>{let path='';buckets.forEach((b,i)=>{const x=45+i*30,y=210-b.values[key]/max*170;if(v3Chart==='line')path+=(i?' L':'M')+x+','+y;else{let before=keys.slice(0,k).reduce((s,g)=>s+b.values[g],0);svg+='<rect x="'+x+'" y="'+(210-(before+b.values[key])/max*170)+'" width="25" height="'+b.values[key]/max*170+'" fill="'+v3Color(key,k)+'"><title>'+date(new Date(b.at).toISOString())+' '+esc(v3Name(key))+' '+b.values[key].toFixed(2)+' 个百分点</title></rect>';}});if(path)svg+='<path d="'+path+'" fill="none" stroke="'+v3Color(key,k)+'" stroke-width="2"/>';});for(let i=0;i<=6;i++)svg+='<text x="'+(45+i*115)+'" y="240" fill="#9aaec5" font-size="11" text-anchor="middle">'+esc(new Date(start+i*span/6).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}))+'</text>';svg+='<text x="8" y="22" fill="#9aaec5" font-size="12">消耗 / '+(usageMode?'token':'个百分点')+'；上限 '+max.toFixed(1)+'</text>';}
-  el('v3-activity').innerHTML=svg||'<text x="30" y="60" fill="#9aaec5">等待足够的历史观测</text>';
-  const pts=h.points||[];let path='',previous=null;for(const p of pts){const x=45+(Date.parse(p.at)-start)/Math.max(1,span)*690,y=20+(100-p.remaining)*1.9;path+=(previous&&Date.parse(p.at)-Date.parse(previous.at)<1200000?' L':' M')+x+','+y;previous=p;}el('v3-quota').innerHTML=(!pts.length?'<text x="30" y="75" fill="#9aaec5">'+(h.overview_usage?'额度曲线请切换所选账号视图；上方是设备 token 总览。':'暂无账号额度快照；上方实际用量已正常统计。')+'</text>':'')+'<text x="8" y="15" fill="#9aaec5" font-size="12">剩余额度 %（'+(v3Kind==='secondary'?'周窗口':'5h 窗口')+'）</text><path d="'+path+'" fill="none" stroke="#8af7cc" stroke-width="3"/>'+Array.from({length:7},(_,i)=>'<text x="'+(45+i*115)+'" y="240" fill="#9aaec5" font-size="11" text-anchor="middle">'+(span>0?esc(new Date(start+i*span/6).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})): '—')+'</text>').join('');
-  el('v3-model-coverage').textContent=(data.window_models||[]).map(d=>d.device_id+'：'+(d.coverage?.length?'有分钟记录；覆盖区间 '+d.coverage.map(c=>date(new Date(c.start*1000).toISOString())+' 至 '+date(new Date(c.end*1000).toISOString())+(c.truncated?'（截断）':'')).join(' / '):'尚无分钟记录，请切换每日模型记录')).join('；');
-  el('v3-model-rows').innerHTML=v3Detail().map(r=>'<tr><td>'+esc(r.members||r.device)+'</td><td>'+esc(r.device)+'</td><td>'+esc(r.day)+'</td><td>'+esc(r.model)+'</td><td>'+fmt(r.input_tokens)+'</td><td>'+fmt(r.cached_input_tokens)+'</td><td>'+fmt(r.output_tokens)+'</td><td>'+fmt(r.reasoning_output_tokens)+'</td><td>'+fmt(r.total_tokens)+'</td><td>'+(r.estimated_quota_percent==null?(el('v3-detail-mode')?.value==='window'?'待校准或缺记录':'切换窗口查看'):r.estimated_quota_percent.toFixed(3))+'</td></tr>').join('');
-}
-document.querySelector('.trend').insertAdjacentHTML('beforebegin',`<section id="v3-history" class="panel" style="margin-bottom:20px"><h2>v3.0 · 历史额度与模型明细</h2><div class="toolbar"><select id="v3-kind"><option value="primary">5h 额度窗口</option><option value="secondary">周额度窗口（按实际重置）</option></select><button id="v3-prev">← 更早</button><select id="v3-window"></select><button id="v3-next">较新 →</button><select id="v3-chart-scope"><option value="all">全部可见设备的 token</option><option value="account">所选账号的 token</option></select><select id="v3-chart-metric"><option value="tokens">实际 token 消耗</option><option value="quota">额度百分点估算</option></select><select id="v3-chart"><option value="bar">柱状图</option><option value="line">折线图</option></select><label>图表起点<input id="v3-from" type="datetime-local"></label><label>终点<input id="v3-to" type="datetime-local"></label><select id="v3-detail-mode"><option value="window">所选额度窗口的模型记录</option><option value="daily" selected>下方日期范围的每日模型记录</option></select><button id="v3-json">导出 JSON</button><button id="v3-csv">导出 CSV</button></div><p class="small" id="v3-period"></p><p class="small" id="v3-estimation"></p><p class="small" id="v3-validation" hidden></p><div id="v3-pie" style="display:flex;align-items:center;gap:24px;flex-wrap:wrap"></div><svg id="v3-activity" viewBox="0 0 800 260" role="img" aria-label="所选时段各成员的额度消耗"></svg><svg id="v3-quota" viewBox="0 0 800 260" role="img" aria-label="所选额度窗口剩余曲线"></svg><p class="small">设备额度是按模型、缓存和输出加权后的可解释估算，并非官方逐设备账单。未同步用量另给经验误差范围；范围包含零时不单列“其他”扇区，仍可能存在范围内的同时使用。累计验证以至少 15 分钟的结算段进行，完整模型历史可恢复缺失的活动记录；待归属会显示具体原因。旧客户端无需重装，新记录到达后自动重算。模型额度仅在窗口明细模式下估算；每日 token 不再套用窗口额度。</p><p id="v3-model-coverage" class="small"></p><div class="tablewrap"><table><thead><tr><th>成员</th><th>设备</th><th>日期</th><th>模型</th><th>输入</th><th>缓存</th><th>输出</th><th>推理</th><th>总 token</th><th>额度估算 / 百分点</th></tr></thead><tbody id="v3-model-rows"></tbody></table></div></section>`);
-el('v3-kind').onchange=e=>{v3Kind=e.target.value;v3Reset='';load()};el('v3-window').onchange=e=>{v3Reset=e.target.value;load()};for(const[id,delta]of [['v3-prev',1],['v3-next',-1]])el(id).onclick=()=>{const w=data.history.windows,i=w.findIndex(x=>x.reset===data.history.reset);if(w[i+delta]){v3Reset=w[i+delta].reset;load()}};el('v3-chart-scope').onchange=()=>v3Render();el('v3-chart-metric').onchange=()=>v3Render();el('v3-chart').onchange=e=>{v3Chart=e.target.value;v3Render()};el('v3-json').onclick=()=>v3Export(true);el('v3-csv').onclick=()=>v3Export(false);
-const originalRender=render;render=function(){v3Rates(data?.model_rates);originalRender();v3Render()};
-const accountPicker=document.createElement('select');accountPicker.id='v3-codex-account';accountPicker.setAttribute('aria-label','选择 Codex 账号');el('v3-kind').before(accountPicker);accountPicker.onchange=()=>{v3Account=accountPicker.value;v3Reset='';load()};
-const scopedRender=render;render=function(){if(data?.codex_accounts){accountPicker.innerHTML=data.codex_accounts.map(a=>'<option value="'+esc(a.id)+'" '+(a.id===data.codex_account?'selected':'')+'>'+esc(a.label)+'</option>').join('');v3Account=data.codex_account;}scopedRender()};
-fetch('model-rates.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(registry=>{if(!registry)return;v3Rates(registry);render()}).catch(()=>{});
-
+document.querySelector('.trend').insertAdjacentHTML('beforebegin',`<section id="v3-history" class="panel" style="margin-bottom:20px"><h2>历史额度、成员与模型消耗</h2><div class="toolbar"><select id="v3-kind"><option value="primary">5h 历史窗口</option><option value="secondary">周额度历史（按实际重置）</option></select><button id="v3-prev">← 更早</button><select id="v3-window"></select><button id="v3-next">较新 →</button><select id="v3-chart-scope"><option value="all">全部可见设备</option><option value="account">所选账号</option></select><select id="v3-chart-metric"><option value="credits">相对额度（标准积分）</option><option value="tokens">实际 token</option><option value="quota">额度百分点（经验估算）</option></select><select id="v3-chart"><option value="bar">柱状图</option><option value="line">折线图</option></select><label>图表起点<input id="v3-from" type="datetime-local"></label><label>终点<input id="v3-to" type="datetime-local"></label><button id="v3-json">导出 JSON</button><button id="v3-csv">导出模型 CSV</button></div><p id="v3-period" class="small"></p><p id="v3-estimation" class="small"></p><div id="v3-pie" style="display:flex;align-items:center;gap:24px;flex-wrap:wrap"></div><svg id="v3-activity" viewBox="0 0 800 260" role="img" aria-label="成员消耗柱状或折线图"></svg><h3>实际记录的剩余额度曲线</h3><select id="v3-curve"></select><p id="v3-curve-legend" class="small"></p><svg id="v3-quota" viewBox="0 0 800 260" role="img" aria-label="每个账号与设备实际记录的剩余额度曲线"></svg><p class="small">曲线直接来自已记录快照，不以校准通过为显示条件。不同账号、账号未标识的旧记录分开绘制，不拼接成同一账号账单。单个快照也显示圆点；重置处断线。</p><h3>当前窗口：成员、设备与模型</h3><p id="v3-model-coverage" class="small"></p><div class="tablewrap"><table><thead><tr><th>成员</th><th>设备</th><th>模型</th><th>输入</th><th>缓存</th><th>输出</th><th>推理</th><th>总 token</th><th>相对额度 / 标准积分</th><th>相对消耗占比</th></tr></thead><tbody id="v3-model-rows"></tbody></table></div></section>`);
+const accountPicker=document.createElement('select');accountPicker.id='v3-codex-account';accountPicker.setAttribute('aria-label','选择 Codex 账号');el('v3-kind').before(accountPicker);
+function v3Change(){v3Reset='';el('v3-from').value='';el('v3-to').value='';load();}
+accountPicker.onchange=()=>{v3Account=accountPicker.value;v3Change();};
+el('v3-kind').onchange=e=>{v3Kind=e.target.value;v3Change();};
+el('v3-chart-scope').onchange=e=>{v3Scope=e.target.value;v3Change();};
+el('v3-window').onchange=e=>{v3Reset=e.target.value;el('v3-from').value='';el('v3-to').value='';load();};
+for(const [id,step]of [['v3-prev',1],['v3-next',-1]])el(id).onclick=()=>{const ws=data.explorer.windows,i=ws.findIndex(w=>String(w.reset)===String(data.explorer.reset));if(ws[i+step]){v3Reset=String(ws[i+step].reset);el('v3-from').value='';el('v3-to').value='';load();}};
+el('v3-chart-metric').onchange=()=>{if(el('v3-chart-metric').value==='quota'&&v3Scope!=='account'){v3Scope='account';el('v3-chart-scope').value='account';v3Change();}else v3Render();};
+el('v3-chart').onchange=e=>{v3Chart=e.target.value;v3Render();};el('v3-curve').onchange=v3Render;
 for(const id of ['v3-from','v3-to'])el(id).onchange=v3Render;
-
-el('v3-detail-mode').onchange=v3Render;
-
-el('quota-svg').closest('section').hidden=true;el('quota-attribution').closest('section').hidden=true;load();
-
-
-
+el('v3-json').onclick=()=>v3Export(true);el('v3-csv').onclick=()=>v3Export(false);
 function renderDeviceOverview(){
- if(!data?.device_overview)return;
- let notice=el('v3-device-overview-notice');
- if(!notice){notice=document.createElement('p');notice.id='v3-device-overview-notice';notice.className='small';el('devices').before(notice);}
- notice.textContent=data.role==='admin'?'设备总览：显示全部设备及其已上传的各账号累计用量；账号选择仅筛选额度图和账号明细，不隐藏设备。':'设备总览：自己的绑定设备始终可见；其他设备只显示所选账号的合计。';
- [...el('devices').children].forEach((card,i)=>{
-  const d=data.devices[i];if(!d?.account_labels)return;
-  const note=document.createElement('p');note.className='small';note.dataset.accountScope='overview';
-  note.textContent='账号归属：'+d.account_labels.join(' / ')+(d.account_labels.length>1?'（卡片为跨账号累计）':'');card.append(note);
- });
+ if(!data?.device_overview)return;let note=el('v3-device-overview-notice');if(!note){note=document.createElement('p');note.id='v3-device-overview-notice';note.className='small';el('devices').before(note);}
+ note.textContent=data.role==='admin'?'设备总览显示全部设备的已上传累计记录；下方历史区可按账号、时段和模型比较。':'自己的绑定设备始终可见；其他成员只显示所选账号的消耗合计。';
+ [...el('devices').children].forEach((card,i)=>{const d=data.devices[i];if(!d?.account_labels)return;const p=document.createElement('p');p.className='small';p.textContent='账号归属：'+d.account_labels.join(' / ');card.append(p);});
 }
-const inventoryRender=render;render=function(){inventoryRender();renderDeviceOverview()};
+const originalRender=render;render=function(){if(data?.codex_accounts){accountPicker.innerHTML=data.codex_accounts.map(a=>'<option value="'+esc(a.id)+'" '+(a.id===data.codex_account?'selected':'')+'>'+esc(a.label)+'</option>').join('');v3Account=data.codex_account;}v3Rates(data?.model_rates);originalRender();v3Render();renderDeviceOverview();};
+el('quota-svg').closest('section').hidden=true;el('quota-attribution').closest('section').hidden=true;
+load();

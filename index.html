@@ -64,7 +64,7 @@
 </main>
 <script src="config.js"></script>
 <script src="retry.js"></script>
-<script src="auth.js?v=traffic-20261105"></script>
+<script src="auth.js?v=history-models-20261105"></script>
 <script>
 const palette=['#8af7cc','#8db6ff','#ffd787','#e7a5ff','#ff9b9b','#7de0db','#b9a4ff','#d7e281'];
 // BEGIN STANDARD CREDIT RATES
@@ -101,7 +101,7 @@ el('issue-key').onclick=async()=>{const device_id=el('device-key-id').value.trim
 async function copy(id){try{await navigator.clipboard.writeText(el(id).value);el('account-state').textContent='已复制'}catch{el('account-state').textContent='复制失败，请手动选择文本复制'}}el('copy-device-key').onclick=()=>copy('device-key-output');
 el('rates').innerHTML=Object.entries(rates).map(([model,row])=>'<tr><td>'+esc(model)+'</td>'+row.map(v=>'<td>'+v+'</td>').join('')+'</tr>').join('');el('range').onchange=()=>render();el('metric').onchange=()=>render();el('refresh').onclick=load;setInterval(()=>{if(!document.hidden)load()},300000);
 </script>
-<script src="enhance.js?v=traffic-20261105"></script>
+<script src="enhance.js?v=history-models-20261105"></script>
 </body>
 </html>
 
