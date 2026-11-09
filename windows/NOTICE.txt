@@ -1,0 +1,20 @@
+Codex Quota Guard 0.1 preview
+
+This community tool changes the current user's Codex config.toml and creates a
+filtered local model catalog. It never patches Codex.exe, injects into processes,
+changes security software, or uploads chats or account credentials.
+
+The model catalog is loaded at startup. Fully quit and reopen Codex after a policy
+change. Existing chat selections and manual model overrides are NOT hard-blocked.
+This preview does not guarantee real-time quota enforcement or future compatibility.
+
+Quota is read through Codex's account/rateLimits/read, at most once per 3 minutes.
+Unknown, expired or unavailable quota uses Luna only. Software updates are checked
+once per 24 hours, including failed requests and restarts. Updates require a pinned
+Ed25519 signature and SHA-256 hash before the standard installer runs.
+
+Configuration backup and recovery data are kept in %LOCALAPPDATA%\CodexQuotaGuard.
+Uninstall restores only settings this tool still owns and keeps recovery backups.
+The existing Codex Usage Monitor is independent and is not uninstalled or altered.
+
+No guarantee is made about antivirus false positives or Windows publisher reputation.

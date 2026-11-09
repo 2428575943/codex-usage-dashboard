@@ -1,0 +1,44 @@
+[
+  {
+    "remaining": 40,
+    "tier": "full",
+    "models": [
+      "gpt-6.1-sol",
+      "gpt-6.1-terra",
+      "gpt-6-luna"
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "actual_component_model_list_verified": true
+  },
+  {
+    "remaining": 20,
+    "tier": "balanced",
+    "models": [
+      "gpt-6.1-terra",
+      "gpt-6-luna"
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "actual_component_model_list_verified": true
+  },
+  {
+    "remaining": 10,
+    "tier": "save",
+    "models": [
+      "gpt-6-luna"
+    ],
+    "efforts": [
+      "low",
+      "medium",
+      "high"
+    ],
+    "actual_component_model_list_verified": true
+  }
+]
