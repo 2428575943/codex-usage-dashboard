@@ -11,7 +11,7 @@ import time
 import tomllib
 import uuid
 
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 EFFORTS = ('low', 'medium', 'high')
 LUNA = 'gpt-6-luna'
 TERRA = 'gpt-6.1-terra'

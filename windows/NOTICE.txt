@@ -1,4 +1,4 @@
-Codex Quota Guard 0.1.1 preview
+Codex Quota Guard 0.1.2 preview
 
 This community tool changes the current user's Codex config.toml and creates a
 filtered local model catalog. It never patches Codex.exe, injects into processes,

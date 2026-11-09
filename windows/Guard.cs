@@ -13,8 +13,8 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 [assembly: AssemblyTitle("Codex Quota Guard")]
 [assembly: AssemblyCompany("Codex Quota Guard community project")]
-[assembly: AssemblyVersion("0.1.1.0")]
-[assembly: AssemblyFileVersion("0.1.1.0")]
+[assembly: AssemblyVersion("0.1.2.0")]
+[assembly: AssemblyFileVersion("0.1.2.0")]
 class Guard : Form {
     static readonly string Root=Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
     static readonly string State=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexQuotaGuard");
@@ -52,7 +52,7 @@ class Guard : Form {
     readonly System.Windows.Forms.Timer Signals=new System.Windows.Forms.Timer{Interval=1000};
     bool busy,exiting;bool background;
     public Guard(bool background){
-        this.background=background;Text="Codex 额度守护 · 预览版 0.1.1";ClientSize=new Size(710,540);MinimumSize=new Size(640,480);StartPosition=FormStartPosition.CenterScreen;
+        this.background=background;Text="Codex 额度守护 · 预览版 0.1.2";ClientSize=new Size(710,540);MinimumSize=new Size(640,480);StartPosition=FormStartPosition.CenterScreen;
         BackColor=Info.BackColor;Padding=new Padding(24);Controls.Add(Info);
         var buttons=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=52,Padding=new Padding(0,10,0,0)};
         var refresh=new Button{Text="刷新状态",Width=110,Height=30,BackColor=Color.FromArgb(223,232,245),ForeColor=Color.Black,UseVisualStyleBackColor=false,FlatStyle=FlatStyle.Flat};refresh.Click+=async(s,e)=>await Cycle();buttons.Controls.Add(refresh);
@@ -93,8 +93,12 @@ class Guard : Form {
         var pending=Read(Path.Combine(State,"pending-update.json"));if(pending.Count==0)return;
         var trust=Read(Path.Combine(Root,"update-trust.json"));
         if(Convert.ToInt32(S(pending,"sequence"))<=Convert.ToInt32(S(trust,"sequence"))){File.Delete(Path.Combine(State,"pending-update.json"));return;}
-        string file=Path.GetFullPath(S(pending,"path")),folder=Path.GetFullPath(Path.Combine(State,"updates"))+Path.DirectorySeparatorChar;
-        if(!file.StartsWith(folder,StringComparison.OrdinalIgnoreCase)||!File.Exists(file))return;
+        // Derive the path locally. Packaged Windows apps may give Python and .NET
+        // different aliases for the same LocalAppData directory.
+        int sequence=Convert.ToInt32(S(pending,"sequence"));
+        if(sequence<1)return;
+        string file=Path.Combine(State,"updates","setup-"+sequence+".exe");
+        if(!File.Exists(file))return;
         string attempt=Path.Combine(State,"update-apply-after.txt");long after;
         if(File.Exists(attempt)&&Int64.TryParse(File.ReadAllText(attempt),out after)&&DateTime.UtcNow.Ticks<after)return;
         using(var sha=SHA256.Create())using(var stream=File.OpenRead(file)){
