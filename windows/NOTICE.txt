@@ -1,20 +1,25 @@
-Codex Quota Guard 0.1.3 preview
+Codex Quota Guard 0.2.0
 
-This community tool changes the current user's Codex config.toml and creates a
-filtered local model catalog. It never patches Codex.exe, injects into processes,
-changes security software, or uploads chats or account credentials.
+This community tool registers a UserPromptSubmit hook and maintains model defaults.
+First enablement requires your review in Codex Settings > Hooks. It never writes
+approval hashes or bypasses Codex's hook trust checks.
 
-The model catalog is loaded at startup. Fully quit and reopen Codex after a policy
-change. Existing chat selections and manual model overrides are NOT hard-blocked.
-This preview does not guarantee real-time quota enforcement or future compatibility.
+After review, the hook checks the actual selected model before each submission,
+including submissions in existing local chats, without restarting Codex. A model
+outside the current quota tier is blocked; select an allowed model and resubmit.
+Concurrent submissions share at most five seconds of official quota cache.
 
-Quota is read through Codex's account/rateLimits/read, at most once per 3 minutes.
-Unknown, expired or unavailable quota uses Luna only. Software updates are checked
-once per 24 hours, including failed requests and restarts. Updates require a pinned
-Ed25519 signature and SHA-256 hash before the standard installer runs.
+Already sent requests and internal continuation/retry requests in the same turn
+are not intercepted. Disabled, untrusted, failed or timed-out hooks can fail open
+in Codex. This preview is not a system security boundary. Effort menu settings
+do not enforce existing per-turn effort overrides.
 
-Configuration backup and recovery data are kept in %LOCALAPPDATA%\CodexQuotaGuard.
-Uninstall restores only settings this tool still owns and keeps recovery backups.
-The existing Codex Usage Monitor is independent and is not uninstalled or altered.
+No prompts, transcripts or credentials are saved or uploaded. The tool never
+patches Codex.exe, injects processes, or weakens network/security settings.
 
-No guarantee is made about antivirus false positives or Windows publisher reputation.
+Software update checks run at most once per day. Signed update verification is
+not a Windows publisher signature or a guarantee of antivirus acceptance.
+
+Uninstall restores owned settings and removes only this tool's hook. Backups stay
+in %LOCALAPPDATA%\CodexQuotaGuard. Exiting the tray does NOT disable a reviewed
+hook; use Disable and restore or disable it in Codex Settings > Hooks instead.

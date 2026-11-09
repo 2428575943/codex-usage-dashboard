@@ -10,6 +10,8 @@ from guard_core import (VERSION, ConfigManager, atomic_json, filtered_catalog, l
                         quota_from_result, read_json, valid_quota)
 from codex_rpc import Rpc, account_fingerprint, discover_binary
 import updater
+import hook_manager
+from live_guard import LIVE_CACHE_SECONDS
 
 POLL_SECONDS = 180
 
@@ -74,24 +76,41 @@ def cycle(home, state, root, apply=True, network=True):
         atomic_json(cache_path, cache)
     now = time.time()
     remaining = valid_quota(cache.get('quota'), cache.get('account'), now)
+    live_cache=read_json(state/'live-quota.json',{})
+    live_quota=live_cache.get('quota') or {}
+    if (live_cache.get('auth_generation')==auth_generation(home)
+            and live_quota.get('observed_at',0)>(cache.get('quota') or {}).get('observed_at',0)):
+        latest=valid_quota(live_quota,live_quota.get('account'),now)
+        if latest is not None:remaining=latest
     source, source_path = load_source(home)
-    catalog, tier, visible = filtered_catalog(source, remaining)
+    # Keep the startup catalog stable. Live admission, rather than a shrinking
+    # startup picker, decides whether the current selected model may be submitted.
+    catalog, _, picker_models = filtered_catalog(source, 100)
+    _, tier, visible = filtered_catalog(source, remaining)
     digest = hashlib.sha256(json.dumps(catalog, sort_keys=True).encode()).hexdigest()
     component = str(binary) + ':' + str(binary.stat().st_mtime_ns)
     proof = read_json(state / 'compatibility.json', {})
     if proof.get('digest') != digest or proof.get('component') != component:
-        compatibility(binary, home, state, catalog, visible)
+        compatibility(binary, home, state, catalog, picker_models)
         proof = {'digest': digest, 'component': component, 'verified_at': time.time()}
         atomic_json(state / 'compatibility.json', proof)
-    status.update(remaining_percent=remaining, tier=tier, visible_models=visible,
+    status.update(remaining_percent=remaining, tier=tier, visible_models=visible,picker_models=picker_models,
                   efforts=['low', 'medium', 'high'], compatible=True,
                   quota_error=cache.get('error'), source_catalog=source_path.name,
                   quota_observed_at=(cache.get('quota') or {}).get('observed_at'))
     previous = read_json(state / 'status.json', {})
     if apply:
-        changed = ConfigManager(home, state).apply(catalog, visible)
+        changed = ConfigManager(home, state).apply(catalog, picker_models, allowed_defaults=visible)
+        command=hook_manager.install(root,home,state)
+        with Rpc(binary,home) as rpc:
+            admission=hook_manager.status(rpc,command)
+        status['live_guard']=admission
+        status['live_prompt_enforcement']=admission['trusted']
+        status['enforcement']='user_prompt_admission' if admission['trusted'] else 'awaiting_hook_review'
+        status['live_cache_seconds']=LIVE_CACHE_SECONDS
         # A component change or catalog change needs a full app restart. Never terminate user chats.
-        status['restart_required'] = bool(changed or previous.get('restart_required'))
+        status['picker_refresh_requires_restart'] = bool(changed or previous.get('picker_refresh_requires_restart'))
+        status['restart_required'] = False
         status['config_applied'] = True
     else:
         status['config_applied'] = False
@@ -116,6 +135,7 @@ def main():
         return
     try:
         if args.restore:
+            hook_manager.restore(args.home,args.state)
             print(json.dumps(ConfigManager(args.home, args.state).restore()))
         else:
             print(json.dumps(cycle(args.home, args.state, Path(__file__).parent,

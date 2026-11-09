@@ -22,7 +22,8 @@ def discover_binary():
 
 
 class Rpc:
-    def __init__(self, binary, home, overrides=()):
+    def __init__(self, binary, home, overrides=(), initialize_timeout=25, close_timeout=4):
+        self.close_timeout=close_timeout
         args = [str(binary), 'app-server']
         for value in overrides:
             args += ['-c', value]
@@ -55,7 +56,7 @@ class Rpc:
         self.reader.start()
         try:
             self.call('initialize', {'clientInfo': {'name': 'codex_quota_guard',
-                       'title': 'Codex Quota Guard', 'version': VERSION}})
+                       'title': 'Codex Quota Guard', 'version': VERSION}},timeout=initialize_timeout)
             self.send({'method': 'initialized', 'params': {}})
         except Exception:
             self.close()
@@ -90,10 +91,10 @@ class Rpc:
         if self.proc.poll() is None:
             self.proc.terminate()
             try:
-                self.proc.wait(timeout=4)
+                self.proc.wait(timeout=self.close_timeout)
             except subprocess.TimeoutExpired:
                 self.proc.kill()
-                self.proc.wait(timeout=4)
+                self.proc.wait(timeout=self.close_timeout)
         for stream in (self.proc.stdin, self.proc.stdout):
             if stream:
                 stream.close()

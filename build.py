@@ -14,7 +14,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument('--runtime-source',type=Path,required=True);p.add_argument('--iscc',type=Path,required=True)
     args=p.parse_args();root=Path(__file__).resolve().parent;payload=root/'build/payload'
     payload.mkdir(parents=True,exist_ok=True)
-    for name in ['guard_core.py','runtime.py','codex_rpc.py','updater.py','update-trust.json']:
+    for name in ['guard_core.py','runtime.py','codex_rpc.py','updater.py','update-trust.json','live_guard.py','live_hook.py','hook_manager.py']:
         shutil.copy2(root/name,payload/name)
     target=payload/'python'
     target.mkdir(exist_ok=True)

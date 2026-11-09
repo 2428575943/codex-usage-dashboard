@@ -1,0 +1,116 @@
+{
+  "component_test": "real_Codex_app_server_with_loopback_inference_recorder",
+  "remote_inference_used": false,
+  "real_credentials_used": false,
+  "backend_restart_count": 0,
+  "chat_created_before_hook_install": true,
+  "trust_review_simulated_only_in_isolated_home": true,
+  "production_hook_code_used": true,
+  "cases": [
+    {
+      "case": "existing_chat_before_install",
+      "fixture_remaining": 40,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "unreviewed_hook_does_not_claim_enforcement",
+      "fixture_remaining": 20,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "same_existing_chat_full_tier_sol",
+      "fixture_remaining": 40,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "same_existing_chat_falls_to_middle_sol_blocked",
+      "fixture_remaining": 20,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": false,
+      "provider_requests": 0,
+      "same_live_backend": true
+    },
+    {
+      "case": "per_turn_override_terra_allowed_in_middle",
+      "fixture_remaining": 20,
+      "selected_model": "gpt-6.1-terra",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "same_existing_chat_falls_to_low_terra_blocked",
+      "fixture_remaining": 10,
+      "selected_model": "gpt-6.1-terra",
+      "allowed": false,
+      "provider_requests": 0,
+      "same_live_backend": true
+    },
+    {
+      "case": "same_existing_chat_luna_allowed_in_low",
+      "fixture_remaining": 10,
+      "selected_model": "gpt-6-luna",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "quota_reset_sol_available_without_restart",
+      "fixture_remaining": 80,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "explicit_astra_override_rejected",
+      "fixture_remaining": 80,
+      "selected_model": "gpt-6-astra",
+      "allowed": false,
+      "provider_requests": 0,
+      "same_live_backend": true
+    },
+    {
+      "case": "thirty_percent_boundary_sol_rejected",
+      "fixture_remaining": 30,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": false,
+      "provider_requests": 0,
+      "same_live_backend": true
+    },
+    {
+      "case": "fifteen_percent_boundary_terra_allowed",
+      "fixture_remaining": 15,
+      "selected_model": "gpt-6.1-terra",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    },
+    {
+      "case": "below_fifteen_terra_rejected",
+      "fixture_remaining": 14.999,
+      "selected_model": "gpt-6.1-terra",
+      "allowed": false,
+      "provider_requests": 0,
+      "same_live_backend": true
+    },
+    {
+      "case": "disable_restores_existing_chat_without_restart",
+      "fixture_remaining": 10,
+      "selected_model": "gpt-6.1-sol",
+      "allowed": true,
+      "provider_requests": 1,
+      "same_live_backend": true
+    }
+  ],
+  "passed": true
+}

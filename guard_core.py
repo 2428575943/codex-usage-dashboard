@@ -11,7 +11,7 @@ import time
 import tomllib
 import uuid
 
-VERSION = '0.1.3'
+VERSION = '0.2.0'
 EFFORTS = ('low', 'medium', 'high')
 LUNA = 'gpt-6-luna'
 TERRA = 'gpt-6.1-terra'
@@ -200,7 +200,7 @@ class ConfigManager:
         self.catalog = self.state / 'managed-models.json'
         self.journal = self.state / 'config-ownership.json'
 
-    def apply(self, catalog, visible):
+    def apply(self, catalog, visible, allowed_defaults=None):
         raw = self.path.read_bytes() if self.path.exists() else b''
         text = raw.decode('utf-8-sig')
         parsed = tomllib.loads(text)
@@ -209,7 +209,7 @@ class ConfigManager:
         if current_path and Path(current_path).resolve() != self.catalog.resolve():
             raise ValueError('another_custom_model_catalog_is_active')
         selected = parsed.get('model')
-        if selected not in visible:
+        if selected not in (visible if allowed_defaults is None else allowed_defaults):
             selected = LUNA
         effort = parsed.get('model_reasoning_effort', 'medium')
         if effort not in EFFORTS:
