@@ -1,0 +1,68 @@
+name: Package Codex Quota Guard
+on:
+  push:
+    branches: [codex-quota-guard]
+    paths: ['release-request.json', '.github/workflows/release-guard.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install verifier dependencies
+        run: python -m pip install --only-binary=:all: cryptography==50.0.2 cffi==2.1.1
+      - name: Verify policy, restore and signed updates
+        run: python -m unittest discover -s tests -v
+      - name: Obtain verified installer compiler
+        shell: pwsh
+        run: |
+          $download=Join-Path $env:RUNNER_TEMP 'inno-6.7.4.exe'
+          Invoke-WebRequest https://github.com/jrsoftware/issrc/releases/download/is-6_7_4/innosetup-6.7.4.exe -OutFile $download
+          if((Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash -ne 'A549929319F9120716677C685535CA4671E4B937B5FDC87E2585F32D8EB30E8C'){throw 'Compiler hash mismatch'}
+          $signature=Get-AuthenticodeSignature -LiteralPath $download
+          if($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Pyrsys B.V.'){throw 'Compiler signature mismatch'}
+          $destination=Join-Path $env:RUNNER_TEMP 'inno'
+          $p=Start-Process -FilePath $download -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER','/NOICONS',('/DIR="'+$destination+'"')) -PassThru -WindowStyle Hidden
+          $p.WaitForExit()
+          if($p.ExitCode -ne 0){throw 'Compiler installation failed'}
+      - name: Build installer
+        shell: pwsh
+        run: python build.py --runtime-source "$env:pythonLocation" --iscc "$env:RUNNER_TEMP/inno/ISCC.exe"
+      - name: Test standard install and uninstall
+        shell: pwsh
+        run: |
+          $setup=(Resolve-Path 'dist/codex-quota-guard-0.1.0-setup.exe').Path
+          $p=Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -WindowStyle Hidden
+          $p.WaitForExit()
+          if($p.ExitCode -ne 0){throw 'Install failed'}
+          $app=Join-Path $env:LOCALAPPDATA 'Programs/CodexQuotaGuard'
+          $state=Join-Path $env:LOCALAPPDATA 'CodexQuotaGuard'
+          $p=Start-Process -FilePath (Join-Path $app 'CodexQuotaGuard.exe') -ArgumentList '--self-test' -PassThru -WindowStyle Hidden
+          $p.WaitForExit()
+          if($p.ExitCode -ne 0){throw 'App self-test failed'}
+          [IO.File]::WriteAllText((Join-Path $state 'retain-backup-test.txt'),'retain')
+          $p=Start-Process -FilePath (Join-Path $app 'unins000.exe') -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -WindowStyle Hidden
+          $p.WaitForExit()
+          if($p.ExitCode -ne 0){throw 'Uninstall failed'}
+          if(!(Test-Path -LiteralPath (Join-Path $state 'retain-backup-test.txt'))){throw 'Recovery data lost'}
+          if(Test-Path -LiteralPath (Join-Path $app 'CodexQuotaGuard.exe')){throw 'Program left after uninstall'}
+          if(Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'Codex Quota Guard' -ErrorAction SilentlyContinue){throw 'Startup entry left'}
+      - name: Publish immutable preview release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag='quota-guard-v0.1.0'
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if($LASTEXITCODE -eq 0){throw 'Release already exists; never overwrite'}
+          gh release create $tag --target $env:GITHUB_SHA --title 'Codex Quota Guard 0.1 preview' --notes-file README.md --prerelease --repo $env:GITHUB_REPOSITORY dist/codex-quota-guard-0.1.0-setup.exe dist/SHA256SUMS.txt
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codex-quota-guard-0.1.0
+          path: dist/*
