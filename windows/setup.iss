@@ -30,8 +30,16 @@ Name: "{userprograms}\Codex Quota Guard\Status"; Filename: "{app}\CodexQuotaGuar
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Codex Quota Guard"; ValueData: """{app}\CodexQuotaGuard.exe"" --background"; Flags: uninsdeletevalue
 [Run]
-Filename: "{app}\CodexQuotaGuard.exe"; Parameters: "--background"; Flags: nowait
+Filename: "{app}\CodexQuotaGuard.exe"; Parameters: "--background"; Flags: nowait runascurrentuser; Check: ShouldStartGuard
 [Code]
+function ShouldStartGuard(): Boolean;
+var I: Integer;
+begin
+  Result := True;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/NOSTART') = 0 then Result := False;
+end;
+
 function InitializeUninstall(): Boolean;
 var Code: Integer;
 begin
