@@ -1,0 +1,12 @@
+{
+  "from": "0.1.2",
+  "to": "0.1.3",
+  "installed_sequence": 4,
+  "normal_background_updater": true,
+  "check_brought_forward_for_test": true,
+  "shipped_update_interval_seconds": 86400,
+  "config_applied": true,
+  "compatible": true,
+  "signed_manifest_origin": "GitHub",
+  "date": "2026-11-09"
+}
