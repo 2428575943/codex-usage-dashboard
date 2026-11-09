@@ -21,6 +21,7 @@ class Guard : Form {
     static readonly string Identity=WindowsIdentity.GetCurrent().User.Value;
     static readonly string MutexName="Local\\CodexQuotaGuard-"+Identity;
     static readonly string EventName="Local\\CodexQuotaGuardStop-"+Identity;
+    static readonly string ShowName="Local\\CodexQuotaGuardShow-"+Identity;
     const string RunName="Codex Quota Guard";
     static readonly JavaScriptSerializer Json=new JavaScriptSerializer();
     static string Q(string x){if(x.Contains("\""))throw new ArgumentException();return "\""+x+"\"";}
@@ -47,6 +48,8 @@ class Guard : Form {
     readonly NotifyIcon Tray=new NotifyIcon();
     readonly System.Windows.Forms.Timer Tick=new System.Windows.Forms.Timer{Interval=30000};
     readonly EventWaitHandle StopEvent;
+    readonly EventWaitHandle ShowEvent;
+    readonly System.Windows.Forms.Timer Signals=new System.Windows.Forms.Timer{Interval=1000};
     bool busy,exiting;bool background;
     public Guard(bool background){
         this.background=background;Text="Codex 额度守护 · 预览版 0.1";ClientSize=new Size(710,540);MinimumSize=new Size(640,480);StartPosition=FormStartPosition.CenterScreen;
@@ -62,9 +65,11 @@ class Guard : Form {
         var menu=new ContextMenuStrip();menu.Items.Add("打开状态",null,(s,e)=>{Show();WindowState=FormWindowState.Normal;Activate();});menu.Items.Add("退出守护（保留配置）",null,(s,e)=>{exiting=true;Close();});
         Tray.Icon=SystemIcons.Information;Tray.Text="Codex 额度守护";Tray.ContextMenuStrip=menu;Tray.Visible=true;Tray.DoubleClick+=(s,e)=>{Show();Activate();};
         StopEvent=new EventWaitHandle(false,EventResetMode.ManualReset,EventName);
-        Tick.Tick+=async(s,e)=>{if(StopEvent.WaitOne(0)){exiting=true;Close();return;}await Cycle();};
-        Shown+=async(s,e)=>{if(background)Hide();await Cycle();Tick.Start();};
-        FormClosing+=(s,e)=>{if(!exiting){e.Cancel=true;Hide();}else{Tick.Stop();Tray.Visible=false;Tray.Dispose();StopEvent.Dispose();}};
+        ShowEvent=new EventWaitHandle(false,EventResetMode.AutoReset,ShowName);
+        Signals.Tick+=(s,e)=>{if(StopEvent.WaitOne(0)&&!busy){exiting=true;Close();return;}if(ShowEvent.WaitOne(0)){Show();WindowState=FormWindowState.Normal;Activate();}};
+        Tick.Tick+=async(s,e)=>{if(!StopEvent.WaitOne(0))await Cycle();};
+        Shown+=async(s,e)=>{Signals.Start();if(background)Hide();await Cycle();Tick.Start();};
+        FormClosing+=(s,e)=>{if(!exiting){e.Cancel=true;Hide();}else if(busy){e.Cancel=true;StopEvent.Set();}else{Tick.Stop();Signals.Stop();Tray.Visible=false;Tray.Dispose();StopEvent.Dispose();ShowEvent.Dispose();}};
     }
     void Display(){
         var s=Read(Path.Combine(State,"status.json"));
@@ -106,7 +111,7 @@ class Guard : Form {
             if(Array.IndexOf(args,"--once")>=0)return Worker("");
             using(var mutex=new Mutex(false,MutexName)){
                 bool acquired=false;try{acquired=mutex.WaitOne(0);}catch(AbandonedMutexException){acquired=true;}
-                if(!acquired)return 0;
+                if(!acquired){if(Array.IndexOf(args,"--background")<0)try{using(var show=EventWaitHandle.OpenExisting(ShowName)){show.Set();}}catch(WaitHandleCannotBeOpenedException){}return 0;}
                 try{Startup(true);Application.EnableVisualStyles();Application.Run(new Guard(Array.IndexOf(args,"--background")>=0));}finally{mutex.ReleaseMutex();}
             }
             return 0;
