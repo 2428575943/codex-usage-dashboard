@@ -1,4 +1,4 @@
-# Codex 额度守护（0.1.2 预览版）
+# Codex 额度守护（0.1.3 预览版）
 
 Windows 10/11 x64 的独立社区工具，读取本机 Codex 账号的官方 5 小时剩余额度，生成模型目录并维护配置。与原 Codex Usage Monitor 分开运行，不修改原采集器或统计数据库。
 
@@ -28,7 +28,7 @@ Windows 10/11 x64 的独立社区工具，读取本机 Codex 账号的官方 5 �
 
 ## 安装与恢复
 
-运行 `codex-quota-guard-0.1.2-setup.exe`，标准 Inno Setup 当前用户安装，无需管理员权限或额外 Python。安装完成后自动后台启动，并注册当前用户登录启动项。双击桌面的“Codex 额度守护”查看状态。
+运行 `codex-quota-guard-0.1.3-setup.exe`，标准 Inno Setup 当前用户安装，无需管理员权限或额外 Python。安装完成后自动后台启动，并注册当前用户登录启动项。双击桌面的“Codex 额度守护”查看状态。
 
 状态窗口的“停用并恢复”会停止轮询、移除登录启动项并恢复管理过的配置。标准 Windows 卸载同样先恢复配置，再删除程序文件。恢复失败则中止卸载，保留恢复工具。备份保留在 `%LOCALAPPDATA%\CodexQuotaGuard`。
 

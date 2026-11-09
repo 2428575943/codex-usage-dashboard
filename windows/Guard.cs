@@ -13,8 +13,8 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 [assembly: AssemblyTitle("Codex Quota Guard")]
 [assembly: AssemblyCompany("Codex Quota Guard community project")]
-[assembly: AssemblyVersion("0.1.2.0")]
-[assembly: AssemblyFileVersion("0.1.2.0")]
+[assembly: AssemblyVersion("0.1.3.0")]
+[assembly: AssemblyFileVersion("0.1.3.0")]
 class Guard : Form {
     static readonly string Root=Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
     static readonly string State=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"CodexQuotaGuard");
@@ -52,7 +52,7 @@ class Guard : Form {
     readonly System.Windows.Forms.Timer Signals=new System.Windows.Forms.Timer{Interval=1000};
     bool busy,exiting;bool background;
     public Guard(bool background){
-        this.background=background;Text="Codex 额度守护 · 预览版 0.1.2";ClientSize=new Size(710,540);MinimumSize=new Size(640,480);StartPosition=FormStartPosition.CenterScreen;
+        this.background=background;Text="Codex 额度守护 · 预览版 0.1.3";ClientSize=new Size(710,540);MinimumSize=new Size(640,480);StartPosition=FormStartPosition.CenterScreen;
         BackColor=Info.BackColor;Padding=new Padding(24);Controls.Add(Info);
         var buttons=new FlowLayoutPanel{Dock=DockStyle.Bottom,Height=52,Padding=new Padding(0,10,0,0)};
         var refresh=new Button{Text="刷新状态",Width=110,Height=30,BackColor=Color.FromArgb(223,232,245),ForeColor=Color.Black,UseVisualStyleBackColor=false,FlatStyle=FlatStyle.Flat};refresh.Click+=async(s,e)=>await Cycle();buttons.Controls.Add(refresh);
