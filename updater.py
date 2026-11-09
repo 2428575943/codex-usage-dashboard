@@ -71,6 +71,9 @@ def check(root: Path, state: Path, now=None, downloader=fetch):
     path = state / 'update-state.json'
     record = read_json(path, {})
     if now < record.get('check_after', 0):
+        if record.get('result') == 'ready' and trust.get('sequence', 0) >= record.get('sequence', 1):
+            record['result'] = 'up_to_date'
+            atomic_json(path, record)
         return record.get('result', 'cooldown')
     record['check_after'] = now + INTERVAL
     # Commit before any request. Offline, restarts and manual refresh cannot cause a request loop.

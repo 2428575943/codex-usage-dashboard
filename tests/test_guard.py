@@ -136,6 +136,9 @@ class UpdateTests(unittest.TestCase):
             def download(url,cap,headers):return (json.dumps(env).encode(),'etag') if url.endswith('.json') else (package,None)
             self.assertEqual(updater.check(root,root/'state',1000,download),'ready')
             pending=read_json(root/'state/pending-update.json');self.assertEqual(Path(pending['path']).read_bytes(),package)
+            installed=read_json(root/'update-trust.json');installed['sequence']=2
+            atomic_json(root/'update-trust.json',installed)
+            self.assertEqual(updater.check(root,root/'state',1001,download),'up_to_date')
             env['signature']=base64.b64encode(b'X'*64).decode()
             with self.assertRaises(Exception):updater.verify(env,self.public)
     def test_update_size_hash_and_origin_rejected(self):
