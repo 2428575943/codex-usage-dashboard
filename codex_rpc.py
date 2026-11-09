@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 import urllib.request
+from guard_core import VERSION
 
 
 def discover_binary():
@@ -54,7 +55,7 @@ class Rpc:
         self.reader.start()
         try:
             self.call('initialize', {'clientInfo': {'name': 'codex_quota_guard',
-                       'title': 'Codex Quota Guard', 'version': '0.1.0'}})
+                       'title': 'Codex Quota Guard', 'version': VERSION}})
             self.send({'method': 'initialized', 'params': {}})
         except Exception:
             self.close()

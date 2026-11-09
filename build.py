@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+from guard_core import VERSION
 
 
 def main():
@@ -41,7 +42,7 @@ def main():
     forbidden=[p for p in payload.rglob('*') if p.suffix.lower() in ('.ps1','.vbs','.bat','.cmd')]
     if forbidden:raise ValueError('shell_bootstrap_in_payload')
     subprocess.run([str(args.iscc),'/Qp',str(root/'windows/setup.iss')],check=True)
-    artifact=root/'dist/codex-quota-guard-0.1.0-setup.exe'
+    artifact=root/('dist/codex-quota-guard-'+VERSION+'-setup.exe')
     sha=hashlib.sha256(artifact.read_bytes()).hexdigest()
     (artifact.parent/'SHA256SUMS.txt').write_text(sha+'  '+artifact.name+'\n',encoding='utf-8')
     print('BUILD_OK',artifact.stat().st_size,sha)

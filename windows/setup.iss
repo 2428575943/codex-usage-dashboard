@@ -1,4 +1,4 @@
-#define AppVersion "0.1.0"
+#define AppVersion "0.1.1"
 [Setup]
 AppId={{3C5BA2DC-ABCB-4C84-98E1-79235E302D69}
 AppName=Codex Quota Guard
@@ -12,7 +12,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 OutputDir=..\dist
-OutputBaseFilename=codex-quota-guard-0.1.0-setup
+OutputBaseFilename=codex-quota-guard-{#AppVersion}-setup
 Compression=zip
 SolidCompression=no
 WizardStyle=modern
