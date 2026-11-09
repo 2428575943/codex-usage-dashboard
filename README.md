@@ -36,7 +36,7 @@ Windows 10/11 x64 的独立社区工具，读取本机 Codex 账号的官方 5 �
 
 ## 更新
 
-更新源计划使用本仓库独立分支的 `release/latest.json`，GitHub Releases 保存完整安装包。不依赖 Render 或个人电脑常开。
+更新源使用本仓库独立分支的 `release/latest.json`，GitHub Releases 保存完整安装包。不依赖 Render 或个人电脑常开。
 
 客户端只接受固定 Ed25519 公钥签名、正确产品标识、递增序号、受限 HTTPS 来源和相符 SHA-256 的完整安装包。先验证再调用标准安装程序；升级前停止自己的守护程序，安装后自动启动。更新安装重试也限制为每天一次。首次下载仍可能遇到 Windows SmartScreen 的未签名发布者提示。
 
