@@ -8,10 +8,21 @@ import subprocess
 import threading
 import time
 import urllib.request
+import shutil
 from guard_core import VERSION
 
 
 def discover_binary():
+    # Native CLI installs and npm's Windows shim layout; rediscover after upgrades.
+    native=shutil.which('codex.exe')
+    if native:return Path(native)
+    shim=shutil.which('codex.cmd') or shutil.which('codex.ps1')
+    if shim:
+        package=Path(shim).parent/'node_modules/@openai'
+        candidates=[p for p in package.glob('codex*/**/codex.exe') if p.is_file()]
+        if candidates:
+            candidates.sort(key=lambda p:p.stat().st_mtime,reverse=True)
+            return candidates[0]
     local = Path(os.environ.get('LOCALAPPDATA', '')) / 'OpenAI/Codex/bin'
     paths = list(local.glob('*/codex.exe'))
     # Resolve each cycle; do not pin a component version directory.

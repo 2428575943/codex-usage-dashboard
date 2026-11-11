@@ -82,7 +82,21 @@ def cycle(home, state, root, apply=True, network=True):
             and live_quota.get('observed_at',0)>(cache.get('quota') or {}).get('observed_at',0)):
         latest=valid_quota(live_quota,live_quota.get('account'),now)
         if latest is not None:remaining=latest
-    source, source_path = load_source(home)
+    try:
+        source, source_path = load_source(home)
+    except ValueError as e:
+        if str(e)!='no_compatible_official_model_cache' or not apply:raise
+        # CLI-only computers need no desktop-generated model cache or picker.
+        from guard_core import policy,LUNA,TERRA,SOL
+        tier,allowed=policy(remaining)
+        command=hook_manager.install(root,home,state)
+        with Rpc(binary,home) as rpc:admission=hook_manager.status(rpc,command)
+        status.update(remaining_percent=remaining,tier=tier,visible_models=[m for m in allowed if m in (LUNA,TERRA,SOL)],
+            compatible=admission['registered'],live_guard=admission,live_prompt_enforcement=admission['trusted'],
+            enforcement='user_prompt_admission' if admission['trusted'] else 'awaiting_hook_review',
+            config_applied=False,cli_only=True,update=updater.check(root,state) if network else 'not_checked')
+        atomic_json(state/'status.json',status)
+        return status
     # Keep the startup catalog stable. Live admission, rather than a shrinking
     # startup picker, decides whether the current selected model may be submitted.
     catalog, _, picker_models = filtered_catalog(source, 100)

@@ -1,4 +1,4 @@
-Codex Quota Guard 0.2.0
+Codex Quota Guard 0.2.1
 
 This community tool registers a UserPromptSubmit hook and maintains model defaults.
 First enablement requires your review in Codex Settings > Hooks. It never writes

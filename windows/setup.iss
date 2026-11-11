@@ -1,4 +1,4 @@
-#define AppVersion "0.2.0"
+#define AppVersion "0.2.1"
 [Setup]
 AppId={{3C5BA2DC-ABCB-4C84-98E1-79235E302D69}
 AppName=Codex Quota Guard
