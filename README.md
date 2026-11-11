@@ -1,5 +1,15 @@
 # Codex 额度守护 0.2.1
 
+Windows Codex CLI 一行安装（PowerShell 5.1/7，先安装并登录 Codex CLI）：
+
+```powershell
+irm https://raw.githubusercontent.com/2428575943/codex-usage-dashboard/codex-quota-guard/install-cli.ps1 | iex
+```
+
+自动下载并核对固定 SHA-256，自带 Python，支持原生及 npm 的 Windows CLI。安装后在 Codex CLI 输入 `/hooks`，首次审核额度与模型检查。不代写审核状态。CLI 独立设备不需要桌面版模型缓存。
+
+验证范围：本地安装入口的下载和哈希校验通过；npm 路径发现使用隔离目录验证；28 项测试及干净 Windows 安装/卸载检查通过。没有在另一台仅安装 npm Codex CLI 的实体电脑上完成登录到提交拦截的整套测试。
+
 Windows 10/11 x64 社区工具。0.2 使用 Codex 官方 **UserPromptSubmit 提交前检查**，在消息发送给模型之前执行额度规则，不再依赖切换启动菜单来拦截模型。
 
 ## 使用
